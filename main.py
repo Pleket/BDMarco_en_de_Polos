@@ -23,12 +23,24 @@ def q1a(spark_context: SparkContext, on_server: bool) -> DataFrame:
 
     # TODO: Implement Q1a here by creating a Dataset of DataFrame out of the file at {@code vectors_file_path}.
 
-    return None
+    # read input text file to csv
+    df = spark_session.read.csv(vectors_file_path)
+
+    return df
 
 
 def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
     vectors_file_path = "/vectors.csv" if on_server else "vectors.csv"
-    return spark_context.textFile(vectors_file_path)
+
+    # TODO: Implement Q1b here by creating an RDD out of the file at {@code vectors_file_path}.
+
+    # create Spark context
+    sc = get_spark_context()
+ 
+    # read input text file to RDD
+    lines = sc.textFile(vectors_file_path)
+
+    return lines
 
 
 def q2(spark_context: SparkContext, data_frame: DataFrame):
