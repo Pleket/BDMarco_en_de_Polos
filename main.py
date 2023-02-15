@@ -22,8 +22,7 @@ def q1a(spark_context: SparkContext, on_server: bool) -> DataFrame:
     spark_session = SparkSession(spark_context)
 
     # TODO: Implement Q1a here by creating a Dataset of DataFrame out of the file at {@code vectors_file_path}.
-
-    return None
+    return spark_session.createDataFrame(rdd).toDF(*columns)
 
 
 def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
@@ -56,7 +55,8 @@ if __name__ == '__main__':
 
     rdd = q1b(spark_context, on_server)
 
-    print(rdd.take(10))
+    for x in rdd.take(10):
+        print(x)
 
     q2(spark_context, data_frame)
 
