@@ -28,10 +28,7 @@ def q1a(spark_context: SparkContext, on_server: bool) -> DataFrame:
 
 def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
     vectors_file_path = "/vectors.csv" if on_server else "vectors.csv"
-
-    # TODO: Implement Q1b here by creating an RDD out of the file at {@code vectors_file_path}.
-
-    return None
+    return spark_context.textFile(vectors_file_path)
 
 
 def q2(spark_context: SparkContext, data_frame: DataFrame):
@@ -58,6 +55,8 @@ if __name__ == '__main__':
     data_frame = q1a(spark_context, on_server)
 
     rdd = q1b(spark_context, on_server)
+
+    print(rdd.take(10))
 
     q2(spark_context, data_frame)
 
