@@ -23,7 +23,7 @@ def q1a(spark_context: SparkContext, on_server: bool) -> DataFrame:
 
     # TODO: Implement Q1a here by creating a Dataset of DataFrame out of the file at {@code vectors_file_path}.
 
-    return None
+    return spark_session.read.csv(vectors_file_path, header=True)
 
 
 def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
@@ -31,7 +31,9 @@ def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
 
     # TODO: Implement Q1b here by creating an RDD out of the file at {@code vectors_file_path}.
 
-    return None
+    spark_session = SparkSession(spark_context)
+
+    return spark_session.read.csv(vectors_file_path, header=True).rdd
 
 
 def q2(spark_context: SparkContext, data_frame: DataFrame):
