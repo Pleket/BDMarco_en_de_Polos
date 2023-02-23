@@ -156,9 +156,6 @@ if __name__ == '__main__':
 
     rdd = q1b(spark_context, on_server)
 
-    print('dataframe')
-    print(data_frame)
-
     q2(spark_context, data_frame)
 
     q3(spark_context, rdd)
