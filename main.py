@@ -11,7 +11,7 @@ def get_spark_context(on_server) -> SparkContext:
     if on_server:
         # TODO: You may want to change ERROR to WARN to receive more info. For larger data sets, to not set the
         # log level to anything below WARN, Spark will print too much information.
-        spark_context.setLogLevel("ERROR")
+        spark_context.setLogLevel("WARN")
 
     return spark_context
 
@@ -24,7 +24,8 @@ def q1a(spark_context: SparkContext, on_server: bool) -> DataFrame:
     # TODO: Implement Q1a here by creating a Dataset of DataFrame out of the file at {@code vectors_file_path}.
 
     # read input text file to csv
-    df = spark_session.read.csv(vectors_file_path)
+    # TODO: get the form right. Need enough columns
+    df = spark_session.read.options(delimiter=',').csv(vectors_file_path)
 
     return df
 
@@ -35,9 +36,11 @@ def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
     # TODO: Implement Q1b here by creating an RDD out of the file at {@code vectors_file_path}.
 
     # create Spark context
-    sc = get_spark_context()
+    sc = get_spark_context(on_server=False)
  
     # read input text file to RDD
+    # # TODO: get the form right. Need enough columns
+
     lines = sc.textFile(vectors_file_path)
 
     return lines
@@ -45,6 +48,10 @@ def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
 
 def q2(spark_context: SparkContext, data_frame: DataFrame):
     # TODO: Imlement Q2 here
+    # Dataset is already inputted.
+
+
+
     return
 
 
@@ -65,6 +72,8 @@ if __name__ == '__main__':
     spark_context = get_spark_context(on_server)
 
     data_frame = q1a(spark_context, on_server)
+
+    print(data_frame)
 
     rdd = q1b(spark_context, on_server)
 
