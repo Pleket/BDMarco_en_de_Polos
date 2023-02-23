@@ -1,5 +1,6 @@
 from pyspark import SparkConf, SparkContext, RDD
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import SparkSession, DataFrame, functions
+import pandas as pd
 
 
 def get_spark_context(on_server) -> SparkContext:
@@ -11,7 +12,7 @@ def get_spark_context(on_server) -> SparkContext:
     if on_server:
         # TODO: You may want to change ERROR to WARN to receive more info. For larger data sets, to not set the
         # log level to anything below WARN, Spark will print too much information.
-        spark_context.setLogLevel("WARN")
+        spark_context.setLogLevel("ERROR")
 
     return spark_context
 
@@ -22,11 +23,11 @@ def q1a(spark_context: SparkContext, on_server: bool) -> DataFrame:
     spark_session = SparkSession(spark_context)
 
     # TODO: Implement Q1a here by creating a Dataset of DataFrame out of the file at {@code vectors_file_path}.
-
-    # read input text file to csv
-    # TODO: get the form right. Need enough columns
-    df = spark_session.read.options(delimiter=',').csv(vectors_file_path)
-
+    # df_pd = pd.read_csv(vectors_file_path, header=None)
+    
+    # df_numbers = df_pd[1]
+    # print(df_numbers.head())
+    df = spark_session.read.options(delimiter=",").csv(vectors_file_path)
     return df
 
 
@@ -35,24 +36,18 @@ def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
 
     # TODO: Implement Q1b here by creating an RDD out of the file at {@code vectors_file_path}.
 
-    # create Spark context
-    sc = get_spark_context(on_server=False)
- 
-    # read input text file to RDD
-    # # TODO: get the form right. Need enough columns
+    spark_session = SparkSession(spark_context)
 
-    lines = sc.textFile(vectors_file_path)
-
-    return lines
+    return spark_context.textFile(vectors_file_path)
 
 
 def q2(spark_context: SparkContext, data_frame: DataFrame):
     # TODO: Imlement Q2 here
-    # Dataset is already inputted.
+    #Create more logical column names
+    data_frame = data_frame.select(functions.col("_c0").alias("code"), functions.col("_c1").alias("number"))
+    data_frame.show()
 
-
-
-    return
+    return None
 
 
 def q3(spark_context: SparkContext, rdd: RDD):
@@ -72,12 +67,10 @@ if __name__ == '__main__':
     spark_context = get_spark_context(on_server)
 
     data_frame = q1a(spark_context, on_server)
-
     print(data_frame)
 
     rdd = q1b(spark_context, on_server)
-
-    print(rdd.take(10))
+    print(rdd)
 
     q2(spark_context, data_frame)
 
