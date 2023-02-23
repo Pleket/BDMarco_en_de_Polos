@@ -147,7 +147,6 @@ def q4(spark_context: SparkContext, rdd: RDD):
     # TODO: Imlement Q4 here
     return
 
-print(Vector([1,2,3]) + Vector([1,2,3]))
 if __name__ == '__main__':
     on_server = False  # TODO: Set this to true if and only if deploying to the server
 
@@ -160,7 +159,7 @@ if __name__ == '__main__':
     print('dataframe')
     print(data_frame)
 
-    q2_alt(spark_context, data_frame)
+    q2(spark_context, data_frame)
 
     q3(spark_context, rdd)
 
