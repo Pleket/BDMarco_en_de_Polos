@@ -5,7 +5,7 @@ from pyspark.sql.functions import split as pyspark_split, col, udf
 
 
 # amount of values per vector (dimensions)
-vector_dimensions = 20
+vec_dims = 20
 
 def get_spark_context(on_server) -> SparkContext:
     spark_conf = SparkConf().setAppName("2AMD15")
@@ -31,6 +31,10 @@ def q1a(spark_context: SparkContext, on_server: bool, with_vector_type=False) ->
     # rename key column
     df = df.withColumn('key', df['_c0']).drop('_c0')
 
+    global vec_dims
+    vec_dims = len(df.take(1)[0]['_c1'].split(';'))
+    print(f'{vec_dims =}')
+
     # split values and add them as vector
     split_col = pyspark_split(df['_c1'], ';').cast(ArrayType(IntegerType()))
     print(f'Split col {split_col}')
@@ -39,7 +43,7 @@ def q1a(spark_context: SparkContext, on_server: bool, with_vector_type=False) ->
     if with_vector_type:
         df = df.withColumn('vec', split_col)
     else:
-        for i in range(vector_dimensions):
+        for i in range(vec_dims):
             df = df.withColumn(f'val_{i}', split_col.getItem(i))
 
     # remove old _c1 (; separated values)
@@ -55,10 +59,9 @@ def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
 
     def split_row(row):
         key, values = row.split(',')
-        t_values = tuple([value for value in values.split(';')])
+        t_values = tuple([int(value) for value in values.split(';')])
         # return tuple with key as first item and values after it
-        print((key,) + t_values)
-        return (key,) + t_values
+        return (key, t_values,)
 
     return spark_context.textFile(vectors_file_path).map(split_row)
 
@@ -123,7 +126,8 @@ def q2(spark_context: SparkContext, data_frame: DataFrame):
     # use it in query
     sqlCtx = SQLContext(spark_context)
     sqlCtx.udf.register("VECVAR", get_variance, FloatType())
-    result = sqlCtx.sql('''
+    result = sqlCtx.sql(
+        '''
         SELECT v1.key, v2.key, v3.key, VECVAR(v1.vec, v2.vec, v3.vec) AS variance
         FROM vectors as v1 
         INNER JOIN vectors as v2 ON v1.key < v2.key
@@ -132,7 +136,6 @@ def q2(spark_context: SparkContext, data_frame: DataFrame):
         ''')
 
     result.show()
-
     collection = result.collect()
     print(collection[:10])
     print(f'Amount is {len(collection)}')
@@ -140,7 +143,35 @@ def q2(spark_context: SparkContext, data_frame: DataFrame):
 
 def q3(spark_context: SparkContext, rdd: RDD):
     # TODO: Imlement Q3 here
-    return
+
+    # row[0][0] is the key of the first  rdd after cartesian
+    # row[1][0] is the key of the second rdd after cartesian
+    rdd_cartesian_join1 = rdd.cartesian(rdd).filter(lambda row: row[0][0] < row[1][0]) \
+        .map(lambda row: ((row[0][0], row[1][0]), (row[0][1], row[1][1])))
+
+    # structure is now row[0] = tuple of two keys
+    #                  row[1] = tuple of two value lists (also tuple typed)
+
+    # row[0][0][1] is the key of the second rdd after cartesian
+    # row[1][0]    is the key of the third  rdd after cartesian
+    rdd_cartesian_join2 = rdd_cartesian_join1.cartesian(rdd).filter(lambda row: row[0][0][1] < row[1][0]) \
+        .map(lambda row: (row[0][0] + (row[1][0],),  # first we merge keys of 1 and 2 with key of 3
+         (row[0][1] + (row[1][1],))))                # then we merge the values of 1 and 2 with values of 3
+
+    for x in rdd_cartesian_join2.take(10):
+        print(x)
+
+    # map 
+    def get_sums(row):
+        sums = [0, 0] # total sum and total sum of squares
+        for i in range(len(row[1][0])): # loop over first vector values
+            sums[0] += row[1][0][i]  + row[1][1][i] + row[1][2][i]
+            sums[1] += (row[1][0][i] + row[1][1][i] + row[1][2][i]) ** 2
+        return (row[0], 1/vec_dims * (sums[1] - 1/vec_dims * sums[0] * sums[0]),)
+
+    variances = rdd_cartesian_join2.map(get_sums)
+    for x in variances.take(10):
+        print(x)
 
 
 def q4(spark_context: SparkContext, rdd: RDD):
@@ -156,7 +187,7 @@ if __name__ == '__main__':
 
     rdd = q1b(spark_context, on_server)
 
-    q2(spark_context, data_frame)
+    #q2(spark_context, data_frame)
 
     q3(spark_context, rdd)
 
