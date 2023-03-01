@@ -115,30 +115,32 @@ def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
 def q2(spark_context: SparkContext, data_frame: DataFrame):
     # create UDF
     def get_variance(a1, a2, a3):
-        total_sum         = 0 
+        mu         = 0 
         total_sum_squared = 0
         for i in range(len(a1)):
             curr_sum = a1[i] + a2[i] + a3[i]
-            total_sum += curr_sum
+            mu += curr_sum / len(a1)
             total_sum_squared += curr_sum * curr_sum
-        return 1/len(a1) * (total_sum_squared - 1/len(a1) * total_sum * total_sum)           
+        
+        return 1/len(a1) * total_sum_squared - mu*mu           
 
     # use it in query
+    TAU_PARAMETER = 410
+
     sqlCtx = SQLContext(spark_context)
     sqlCtx.udf.register("VECVAR", get_variance, FloatType())
     result = sqlCtx.sql(
-        '''
+        f'''
+        SELECT * FROM (
         SELECT v1.key, v2.key, v3.key, VECVAR(v1.vec, v2.vec, v3.vec) AS variance
         FROM vectors as v1 
         INNER JOIN vectors as v2 ON v1.key < v2.key
-        INNER JOIN vectors as v3 ON v2.key < v3.key
-        WHERE VECVAR(v1.vec, v2.vec, v3.vec) < 10000000
+        INNER JOIN vectors as v3 ON v2.key < v3.key)
+        WHERE variance < {TAU_PARAMETER};
         ''')
 
-    result.show()
-    collection = result.collect()
-    print(collection[:10])
-    print(f'Amount is {len(collection)}')
+    collection = result.count()
+    print(f'$$ count {collection}')
 
 
 def q3(spark_context: SparkContext, rdd: RDD):
@@ -187,10 +189,10 @@ if __name__ == '__main__':
 
     rdd = q1b(spark_context, on_server)
 
-    #q2(spark_context, data_frame)
+    q2(spark_context, data_frame)
 
-    q3(spark_context, rdd)
+    #q3(spark_context, rdd)
 
-    q4(spark_context, rdd)
+    #q4(spark_context, rdd)
 
     spark_context.stop()
