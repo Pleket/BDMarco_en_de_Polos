@@ -22,20 +22,33 @@ def q1a(spark_context: SparkContext, on_server: bool) -> DataFrame:
     spark_session = SparkSession(spark_context)
 
     # TODO: Implement Q1a here by creating a Dataset of DataFrame out of the file at {@code vectors_file_path}.
+    df = spark_session.read.format("csv").load(vectors_file_path)
 
-    return None
+    return df
 
 
 def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
     vectors_file_path = "/vectors.csv" if on_server else "vectors.csv"
 
     # TODO: Implement Q1b here by creating an RDD out of the file at {@code vectors_file_path}.
+    # rdd = spark_session.read.format("csv").load(vectors_file_path)
+    rdd = spark_context.textFile(vectors_file_path)
 
-    return None
+    return rdd
 
 
 def q2(spark_context: SparkContext, data_frame: DataFrame):
     # TODO: Imlement Q2 here
+    spark_session = SparkSession(spark_context)
+
+    data_frame.createOrReplaceTempView("vectors")
+    query = """
+    SELECT X, Y, Z
+    FROM vectors X
+    LEFT JOIN vectors Y ON 
+    """
+
+    sqlDF = spark_session.sql(query)
     return
 
 
