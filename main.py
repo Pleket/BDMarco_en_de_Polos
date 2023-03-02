@@ -55,8 +55,8 @@ def q1a(spark_context: SparkContext, on_server: bool, with_vector_type=False) ->
     return df
 
 
-def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
-    vectors_file_path = "/vectors.csv" if on_server else "vectors.csv"
+def q1b(spark_context: SparkContext, on_server: bool, big=False) -> RDD:
+    vectors_file_path = "/vectors.csv" if on_server else ("vectors_groot.csv" if big else 'vectors.csv')
 
     def split_row(row):
         key, values = row.split(',')
@@ -123,18 +123,39 @@ def q3(spark_context: SparkContext, rdd: RDD):
     #             .map(lambda row: (row[0], (vec_dims_inv * row[1][1]) - (row[1][0] * row[1][0])))\
     #             .filter(lambda row: row[1] < TAU_PARAMETER) \
 
-    vec_dims_inv = 1 / vec_dims
+    # VERSION 1
+    # vec_dims_inv = 1 / vec_dims
+    # rdd = rdd.flatMap(lambda x: 
+    #                     [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0]]+1: ] if vec_index[x[0]] != len(vecs)-1]
+    #                     ) \
+    #             .flatMap(lambda x: 
+    #                     [( x[0] + (mapping[0],), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0][1]]+1: ] if vec_index[x[0][1]] != len(vecs)-1]
+    #                     ) \
+    #             .flatMap(lambda x:
+    #                             [( x[0], (x[1][i] * 1/len(x[1]), x[1][i] * x[1][i])) for i in range(len(x[1]))]
+    #                     ) \
+    #             .reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1])) \
+    #             .map(lambda row: (row[0], (vec_dims_inv * row[1][1]) - (row[1][0] * row[1][0])))\
+    #             .filter(lambda row: row[1] < TAU_PARAMETER) \
+
+    # Version map
+    def get_var(agg_vec):
+        total_sum   = 0
+        total_sum_squared = 0
+
+        for val in agg_vec:
+            total_sum+=val
+            total_sum_squared+=val*val
+
+        return 1/vec_dims * (total_sum_squared - (1/vec_dims * total_sum * total_sum))
+
     rdd = rdd.flatMap(lambda x: 
-                        [(x[0],mapping[0], tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0]]+1: ] if vec_index[x[0]] != len(vecs)-1]
+                        [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0]]+1: ] if vec_index[x[0]] != len(vecs)-1]
                         ) \
                 .flatMap(lambda x: 
-                        [( (x[0], x[1], mapping[0]), tuple(y[0]+y[1] for y in zip(x[2], mapping[1]))) for mapping in vecs[vec_index[x[1]]+1: ] if vec_index[x[1]] != len(vecs)-1]
+                        [( x[0] + (mapping[0],), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0][1]]+1: ] if vec_index[x[0][1]] != len(vecs)-1]
                         ) \
-                .flatMap(lambda x:
-                                [( x[0], (x[1][i] * 1/len(x[1]), x[1][i] * x[1][i])) for i in range(len(x[1]))]
-                        ) \
-                .reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1])) \
-                .map(lambda row: (row[0], (vec_dims_inv * row[1][1]) - (row[1][0] * row[1][0])))\
+                .map(lambda row: (row[0], get_var(row[1]))) \
                 .filter(lambda row: row[1] < TAU_PARAMETER) \
 
     #print(f">> {rdd.collect()}")
@@ -152,7 +173,7 @@ if __name__ == '__main__':
 
         data_frame = q1a(spark_context, on_server, with_vector_type=True)
 
-        rdd = q1b(spark_context, on_server)
+        rdd = q1b(spark_context, on_server, big=True)
 
         #q2(spark_context, data_frame)
 
