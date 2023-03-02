@@ -1,7 +1,8 @@
 from pyspark import SparkConf, SparkContext, RDD
 from pyspark.sql import SparkSession, DataFrame, SQLContext
 from pyspark.sql.types import ArrayType, IntegerType, FloatType
-from pyspark.sql.functions import split as pyspark_split, col, udf
+from pyspark.sql.functions import split as pyspark_split, broadcast
+from time import sleep
 
 
 # amount of values per vector (dimensions)
@@ -63,54 +64,10 @@ def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
         # return tuple with key as first item and values after it
         return (key, t_values,)
 
-    return spark_context.textFile(vectors_file_path).map(split_row)
+    data = spark_context.textFile(vectors_file_path)
+    return data.map(split_row)
 
 
-# def q2_old(spark_context: SparkContext, data_frame: DataFrame):
-#     tau = 50
-
-#     # create a data frame that contains all combinations between vectors of size 3
-#     # and make sure they are unique, i.e (AA, BB, CC) == (CC, BB, AA) so second is not included
-#     cross = data_frame.alias('d1') \
-#             .join(data_frame.alias('d2'), col('d1.key') < col('d2.key')) \
-#             .join(data_frame.alias('d3'), col('d2.key') < col('d3.key')) \
-
-#     def get_col_sums(df):
-#         # initialize sums to 0
-#         total_sum = 0
-#         total_sum_squared = 0
-#         n_columns = vector_dimensions + 1 # amount of values plus key
-
-#         # iterate over columns only once
-#         for i, curr_name in enumerate(df.columns):
-#             # do not consider keys
-#             if curr_name == 'key':
-#                 continue
-
-#             # determines to which of 3 vectors the column belongs
-#             idx = (i // n_columns)+1
-#             if idx > 1:
-#                 # idx 2 and 3 are already dealt with below
-#                 break 
-
-#             # update column sums
-#             curr_sum = df[f'd1.{curr_name}'] + df[f'd2.{curr_name}'] + df[f'd3.{curr_name}']
-#             total_sum += curr_sum
-#             total_sum_squared  += curr_sum * curr_sum
-#         return total_sum, total_sum_squared
-
-#     # add sum and sum squared to determine the variance after
-#     print(get_col_sums(cross))
-#     col_sums = get_col_sums(cross)
-#     moments = cross.withColumn('sum',  col_sums[0]) \
-#                    .withColumn('sum2', col_sums[1]) \
-#                    .withColumn('var',  1/vector_dimensions * (col('sum2') - 1/vector_dimensions * col('sum') * col('sum')))
-
-#     # select relevant variances (< tau)
-#     result = moments.select('d1.key', 'd2.key', 'd3.key', 'sum', 'sum2', 'var')
-#     print('result')
-#     result.show()
-#     return result
 
 def q2(spark_context: SparkContext, data_frame: DataFrame):
     # create UDF
@@ -121,7 +78,6 @@ def q2(spark_context: SparkContext, data_frame: DataFrame):
             curr_sum = a1[i] + a2[i] + a3[i]
             mu += curr_sum / len(a1)
             total_sum_squared += curr_sum * curr_sum
-        
         return 1/len(a1) * total_sum_squared - mu*mu           
 
     # use it in query
@@ -129,7 +85,7 @@ def q2(spark_context: SparkContext, data_frame: DataFrame):
 
     sqlCtx = SQLContext(spark_context)
     sqlCtx.udf.register("VECVAR", get_variance, FloatType())
-    result = sqlCtx.sql(
+    count = sqlCtx.sql(
         f'''
         SELECT * FROM (
         SELECT v1.key, v2.key, v3.key, VECVAR(v1.vec, v2.vec, v3.vec) AS variance
@@ -137,62 +93,74 @@ def q2(spark_context: SparkContext, data_frame: DataFrame):
         INNER JOIN vectors as v2 ON v1.key < v2.key
         INNER JOIN vectors as v3 ON v2.key < v3.key)
         WHERE variance < {TAU_PARAMETER};
-        ''')
+        ''').count()
 
-    collection = result.count()
-    print(f'$$ count {collection}')
+    print(f'$$ count {count}')
 
 
 def q3(spark_context: SparkContext, rdd: RDD):
-    # TODO: Imlement Q3 here
+    TAU_PARAMETER = 410
+    vecs = rdd.collect()
+    vecs.sort(key=lambda item: item[0])
+    vec_index = {vecs[i][0]: i for i in range(len(vecs))}
 
-    # row[0][0] is the key of the first  rdd after cartesian
-    # row[1][0] is the key of the second rdd after cartesian
-    rdd_cartesian_join1 = rdd.cartesian(rdd).filter(lambda row: row[0][0] < row[1][0]) \
-        .map(lambda row: ((row[0][0], row[1][0]), (row[0][1], row[1][1])))
+    # #BROADCASSTING
+    # vi = spark_context.broadcast(vec_index)
+    # vs = spark_context.broadcast(vecs)
 
-    # structure is now row[0] = tuple of two keys
-    #                  row[1] = tuple of two value lists (also tuple typed)
+    # print(vi)
+    # vec_dims_inv = 1 / vec_dims
+    # rdd = rdd.flatMap(lambda x: 
+    #                     [(x[0],mapping[0], tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0]]+1: ] if vi.value[x[0]] != len(vs.value)-1]
+    #                     ) \
+    #             .flatMap(lambda x: 
+    #                     [( (x[0], x[1], mapping[0]), tuple(y[0]+y[1] for y in zip(x[2], mapping[1]))) for mapping in vs.value[vi.value[x[1]]+1: ] if vi.value[x[1]] != len(vs.value)-1]
+    #                     ) \
+    #             .flatMap(lambda x:
+    #                             [( x[0], (x[1][i] * 1/len(x[1]), x[1][i] * x[1][i])) for i in range(len(x[1]))]
+    #                     ) \
+    #             .reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1])) \
+    #             .map(lambda row: (row[0], (vec_dims_inv * row[1][1]) - (row[1][0] * row[1][0])))\
+    #             .filter(lambda row: row[1] < TAU_PARAMETER) \
 
-    # row[0][0][1] is the key of the second rdd after cartesian
-    # row[1][0]    is the key of the third  rdd after cartesian
-    rdd_cartesian_join2 = rdd_cartesian_join1.cartesian(rdd).filter(lambda row: row[0][0][1] < row[1][0]) \
-        .map(lambda row: (row[0][0] + (row[1][0],),  # first we merge keys of 1 and 2 with key of 3
-         (row[0][1] + (row[1][1],))))                # then we merge the values of 1 and 2 with values of 3
+    vec_dims_inv = 1 / vec_dims
+    rdd = rdd.flatMap(lambda x: 
+                        [(x[0],mapping[0], tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0]]+1: ] if vec_index[x[0]] != len(vecs)-1]
+                        ) \
+                .flatMap(lambda x: 
+                        [( (x[0], x[1], mapping[0]), tuple(y[0]+y[1] for y in zip(x[2], mapping[1]))) for mapping in vecs[vec_index[x[1]]+1: ] if vec_index[x[1]] != len(vecs)-1]
+                        ) \
+                .flatMap(lambda x:
+                                [( x[0], (x[1][i] * 1/len(x[1]), x[1][i] * x[1][i])) for i in range(len(x[1]))]
+                        ) \
+                .reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1])) \
+                .map(lambda row: (row[0], (vec_dims_inv * row[1][1]) - (row[1][0] * row[1][0])))\
+                .filter(lambda row: row[1] < TAU_PARAMETER) \
 
-    for x in rdd_cartesian_join2.take(10):
-        print(x)
-
-    # map 
-    def get_sums(row):
-        sums = [0, 0] # total sum and total sum of squares
-        for i in range(len(row[1][0])): # loop over first vector values
-            sums[0] += row[1][0][i]  + row[1][1][i] + row[1][2][i]
-            sums[1] += (row[1][0][i] + row[1][1][i] + row[1][2][i]) ** 2
-        return (row[0], 1/vec_dims * (sums[1] - 1/vec_dims * sums[0] * sums[0]),)
-
-    variances = rdd_cartesian_join2.map(get_sums)
-    for x in variances.take(10):
-        print(x)
-
-
+    #print(f">> {rdd.collect()}")
+    print(f">>COUNT {rdd.count()}")
+    return
+    
 def q4(spark_context: SparkContext, rdd: RDD):
     # TODO: Imlement Q4 here
     return
 
 if __name__ == '__main__':
-    on_server = False  # TODO: Set this to true if and only if deploying to the server
+    try:
+        on_server = False  # TODO: Set this to true if and only if deploying to the server
+        spark_context = get_spark_context(on_server)
 
-    spark_context = get_spark_context(on_server)
+        data_frame = q1a(spark_context, on_server, with_vector_type=True)
 
-    data_frame = q1a(spark_context, on_server, with_vector_type=True)
+        rdd = q1b(spark_context, on_server)
 
-    rdd = q1b(spark_context, on_server)
+        #q2(spark_context, data_frame)
 
-    q2(spark_context, data_frame)
+        q3(spark_context, rdd)
 
-    #q3(spark_context, rdd)
+        #q4(spark_context, rdd)
 
-    #q4(spark_context, rdd)
-
-    spark_context.stop()
+        sleep(100)
+    except Exception as e:
+        print(e)
+        spark_context.stop()
