@@ -71,20 +71,20 @@ def q1b(spark_context: SparkContext, on_server: bool, big=False) -> RDD:
 
 def q2(spark_context: SparkContext, data_frame: DataFrame):
     # create UDF
-    def get_variance(a1, a2, a3):
+    def get_variance_triple(a1, a2, a3):
         mu         = 0 
         total_sum_squared = 0
         for i in range(len(a1)):
             curr_sum = a1[i] + a2[i] + a3[i]
             mu += curr_sum / len(a1)
             total_sum_squared += curr_sum * curr_sum
-        return 1/len(a1) * total_sum_squared - mu*mu           
+        return 1/len(a1) * total_sum_squared - mu*mu     
 
     # use it in query
     TAU_PARAMETER = 410
 
     sqlCtx = SQLContext(spark_context)
-    sqlCtx.udf.register("VECVAR", get_variance, FloatType())
+    sqlCtx.udf.register("VECVAR", get_variance_triple, FloatType())
     count = sqlCtx.sql(
         f'''
         SELECT * FROM (
@@ -173,7 +173,7 @@ if __name__ == '__main__':
 
         data_frame = q1a(spark_context, on_server, with_vector_type=True)
 
-        rdd = q1b(spark_context, on_server, big=True)
+        rdd = q1b(spark_context, on_server, big=False)
 
         #q2(spark_context, data_frame)
 
