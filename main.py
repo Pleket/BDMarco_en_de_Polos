@@ -1,7 +1,7 @@
 from pyspark import SparkConf, SparkContext, RDD
 from pyspark.sql import SparkSession, DataFrame, SQLContext
 from pyspark.sql.types import ArrayType, IntegerType, FloatType
-from pyspark.sql.functions import split as pyspark_split, broadcast
+from pyspark.sql.functions import split as pyspark_split
 from time import sleep
 
 
@@ -123,20 +123,6 @@ def q3(spark_context: SparkContext, rdd: RDD):
     #             .map(lambda row: (row[0], (vec_dims_inv * row[1][1]) - (row[1][0] * row[1][0])))\
     #             .filter(lambda row: row[1] < TAU_PARAMETER) \
 
-    # VERSION 1
-    # vec_dims_inv = 1 / vec_dims
-    # rdd = rdd.flatMap(lambda x: 
-    #                     [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0]]+1: ] if vec_index[x[0]] != len(vecs)-1]
-    #                     ) \
-    #             .flatMap(lambda x: 
-    #                     [( x[0] + (mapping[0],), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0][1]]+1: ] if vec_index[x[0][1]] != len(vecs)-1]
-    #                     ) \
-    #             .flatMap(lambda x:
-    #                             [( x[0], (x[1][i] * 1/len(x[1]), x[1][i] * x[1][i])) for i in range(len(x[1]))]
-    #                     ) \
-    #             .reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1])) \
-    #             .map(lambda row: (row[0], (vec_dims_inv * row[1][1]) - (row[1][0] * row[1][0])))\
-    #             .filter(lambda row: row[1] < TAU_PARAMETER) \
 
     # Version map
     def get_var(agg_vec):
@@ -149,15 +135,32 @@ def q3(spark_context: SparkContext, rdd: RDD):
 
         return 1/vec_dims * (total_sum_squared - (1/vec_dims * total_sum * total_sum))
 
-    rdd = rdd.flatMap(lambda x: 
-                        [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0]]+1: ] if vec_index[x[0]] != len(vecs)-1]
-                        ) \
-                .flatMap(lambda x: 
-                        [( x[0] + (mapping[0],), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0][1]]+1: ] if vec_index[x[0][1]] != len(vecs)-1]
-                        ) \
-                .map(lambda row: (row[0], get_var(row[1]))) \
-                .filter(lambda row: row[1] < TAU_PARAMETER) \
 
+     # #BROADCASSTING
+    # vi = spark_context.broadcast(vec_index)
+    # vs = spark_context.broadcast(vecs)
+    
+    # rdd = rdd.flatMap(lambda x: 
+    #                     [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0]]+1: ] if vec_index[x[0]] != len(vecs)-1]
+    #                     ) \
+    #             .flatMap(lambda x: 
+    #                     [( x[0] + (mapping[0],), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0][1]]+1: ] if vec_index[x[0][1]] != len(vecs)-1]
+    #                     ) \
+    #             .map(lambda row: (row[0], get_var(row[1]))) \
+    #             .filter(lambda row: row[1] < TAU_PARAMETER) \
+
+    # #BROADCASSTING
+    vi = spark_context.broadcast(vec_index)
+    vs = spark_context.broadcast(vecs)
+    rdd = rdd.flatMap(lambda x: 
+                    [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0]]+1: ] if vi.value[x[0]] != len(vs.value)-1]
+                    ) \
+            .flatMap(lambda x: 
+                    [( x[0] + (mapping[0],), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0][1]]+1: ] if vi.value[x[0][1]] != len(vs.value)-1]
+                    ) \
+            .map(lambda row: (row[0], get_var(row[1]))) \
+            .filter(lambda row: row[1] < TAU_PARAMETER) \
+                
     #print(f">> {rdd.collect()}")
     print(f">>COUNT {rdd.count()}")
     return
@@ -171,9 +174,12 @@ if __name__ == '__main__':
         on_server = False  # TODO: Set this to true if and only if deploying to the server
         spark_context = get_spark_context(on_server)
 
+        SparkContext.setSystemProperty("spark.executor.instances", "4")
+        SparkContext.setSystemProperty("spark.executor.cores", "2")
+
         data_frame = q1a(spark_context, on_server, with_vector_type=True)
 
-        rdd = q1b(spark_context, on_server, big=False)
+        rdd = q1b(spark_context, on_server, big=True)
 
         #q2(spark_context, data_frame)
 
@@ -181,7 +187,7 @@ if __name__ == '__main__':
 
         #q4(spark_context, rdd)
 
-        sleep(100)
+        sleep(10000)
     except Exception as e:
         print(e)
         spark_context.stop()
