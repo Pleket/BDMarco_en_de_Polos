@@ -44,20 +44,79 @@ def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
 def q2(spark_context: SparkContext, data_frame: DataFrame):
     # TODO: Imlement Q2 here
     #Create more logical column names
-    data_frame = data_frame.select(functions.col("_c0").alias("code"), functions.col("_c1").alias("number"))
-    data_frame.show()
 
     return None
 
 
 def q3(spark_context: SparkContext, rdd: RDD):
     # TODO: Imlement Q3 here
-    return
+
+    def compute_variance(line: str):
+        len_X = len(line)
+
+        mu_X = 0 
+        quadraticSum = 0
+        for value in line:
+            value_int = value
+            intermediate = value_int / len_X
+            mu_X += intermediate
+        
+            quad = value_int**2
+            quadraticSum += quad
+        
+        quadratic = quadraticSum / len_X
+        variance = quadratic - mu_X**2
+
+        return variance
+        
+    #Get RDD in form [['val', 'nr'], [ , ], [ , ] ]
+    rdd_splitted = rdd.map( lambda line: line.split(","))
+
+    #Get RDD combined with three values
+    #TODO: Figure out quicker and more efficient way. Maybe loop over all other pairs or cartesian once?
+    #TODO: Also, (A, B, C), (A, C, B) filter needed
+    rdd_combine = rdd_splitted.cartesian(rdd_splitted).filter(lambda line: line[0][0] != line[1][0])\
+                              .cartesian(rdd_splitted).map(lambda line: (line[0][0], line[0][1], line[1]))\
+                              .filter(lambda line: line[0][0] != line[2][0] and line[1][0] != line[2][0])
+    
+    #Find the aggregated vectors
+    def aggregated_vecs(line):
+        line1 = line[0]
+        line2 = line[1]
+        line3 = line[2]
+
+        val1 = line1[1].split(";")
+        val2 = line2[1].split(";")
+        val3 = line3[1].split(";")
+
+        combi_name = (line1[0], line2[0], line3[0])
+
+        len_X = len(val1)
+
+        newVals = []
+        for i in range(len_X):
+            value = int(val1[i]) + int(val2[i]) + int(val3[i])
+
+            newVals.append(value)
+        
+        return (combi_name, newVals)
+    
+    rdd_vars = rdd_combine.map(lambda line: aggregated_vecs(line))\
+                          .map(lambda line: (line[0], compute_variance(line[1])))
+    
+    rdd_under_410 = rdd_vars.filter(lambda line: line[1] <= 410)
+    #rdd_under_20 = rdd_under_410.filter(lambda line: line[1] <= 20)
+
+    print(rdd_under_410.take(2))
+    #print(rdd_under_20.collect())
+
+    return None
 
 
 def q4(spark_context: SparkContext, rdd: RDD):
     # TODO: Imlement Q4 here
-    return
+    return None
+
 
 
 if __name__ == '__main__':
