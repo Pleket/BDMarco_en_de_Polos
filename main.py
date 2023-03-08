@@ -90,14 +90,25 @@ def q3(spark_context: SparkContext, rdd: RDD):
 
         return line0 + line1 + line2
 
+    def rdd_variance(line):
+        len_X = len(line)
+
+        npLine = np.array(line)
+        squares = npLine.square().divide(len_X).sum()
+        mu_X = npLine.divide(len_X).sum()
+
+        return squares - mu_X**2
+
     rdd_key_value = rdd_combine.map(lambda tuple: (tuple[0][0] + tuple[1][0] + tuple[2][0], [tuple[0][1], tuple[1][1], tuple[2][1]]))
     rdd_split = rdd_key_value.map(lambda line: (line[0], [line[1][0].split(";"), line[1][1].split(";"), line[1][2].split(";")]))
     rdd_aggregate = rdd_split.map(lambda line: (line[0], aggregated_vecs(line[1])))
                         #   .map(lambda line: (line[0], compute_variance(line[1])))
+
+    rdd_variance = rdd_aggregate.map(lambda line: (line[0], rdd_variance(line[1])))
     
-    rdd_variance = rdd_aggregate.map(lambda line: (line[0], line[1].map(lambda x: x**2 / len(line[1])), line[1].map(lambda x: x / len(line[1]))))\
-                    .map(lambda line: (line[0], line[1].reduce(lambda x, y: x + y), line[1].reduce(lambda x, y: x + y)))\
-                    .map(lambda line: (line[0], line[1] - line[2]**2))
+    # rdd_variance = rdd_aggregate.map(lambda line: (line[0], line[1].map(lambda x: x**2 / len(line[1])), line[1].map(lambda x: x / len(line[1]))))\
+    #                 .map(lambda line: (line[0], line[1].reduce(lambda x, y: x + y), line[1].reduce(lambda x, y: x + y)))\
+    #                 .map(lambda line: (line[0], line[1] - line[2]**2))
     
     #rdd_under_410 = rdd_vars.filter(lambda line: line[1] <= 410)
     #rdd_under_20 = rdd_under_410.filter(lambda line: line[1] <= 20)
