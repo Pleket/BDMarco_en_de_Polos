@@ -1,6 +1,7 @@
 from pyspark import SparkConf, SparkContext, RDD
 from pyspark.sql import SparkSession, DataFrame, functions
 import pandas as pd
+import numpy as np
 
 
 def get_spark_context(on_server) -> SparkContext:
@@ -77,38 +78,29 @@ def q3(spark_context: SparkContext, rdd: RDD):
     #TODO: Also, (A, B, C), (A, C, B) filter needed
     rdd_combine = rdd_splitted.cartesian(rdd_splitted).filter(lambda line: line[0] < line[1])\
                               .cartesian(rdd_splitted).filter(lambda line: line[0][1] < line[1])\
-                              .map(lambda line: (line[0][0], line[0][1], line[1]))
+                              .map(lambda line: (line[0][0], line[0][1], line[1]))\
+    
+    # [([A, "string1"], [B, "string2"], [C, "string3"]), ([A, "string1"], [B, "string2"], [D, "string4"]), ...]
     
     #Find the aggregated vectors
     def aggregated_vecs(line):
-        line1 = line[0]
-        line2 = line[1]
-        line3 = line[2]
+        line0 = np.array(line[0])
+        line1 = np.array(line[1])
+        line2 = np.array(line[2])
 
-        val1 = line1[1].split(";")
-        val2 = line2[1].split(";")
-        val3 = line3[1].split(";")
+        return line0 + line1 + line2
 
-        combi_name = (line1[0], line2[0], line3[0])
-
-        len_X = len(val1)
-
-        newVals = []
-        for i in range(len_X):
-            value = int(val1[i]) + int(val2[i]) + int(val3[i])
-
-            newVals.append(value)
-        
-        return (combi_name, newVals)
-    
-    rdd_vars = rdd_combine.map(lambda line: aggregated_vecs(line))\
+    rdd_key_value = rdd_combine.mapToPair(lambda tuple: (tuple[0][0] + tuple[1][0] + tuple[2][0], [tuple[0][1], tuple[1][1], tuple[2][1]]))
+    rdd_split = rdd_key_value.map(lambda line: (line[0], [line[1][0].split(), line[1][1].split(), line[1][2].split()]))
+    #                .map(lambda line: (line[0], line[1].map(lambda line: int(line[0]) + int(line[1]) + int(line[2]))))
+    rdd_vars = rdd_split.map(lambda line: (line[0], aggregated_vecs(line[1])))\
                           .map(lambda line: (line[0], compute_variance(line[1])))
     
-    rdd_under_410 = rdd_vars.filter(lambda line: line[1] <= 410)
+    #rdd_under_410 = rdd_vars.filter(lambda line: line[1] <= 410)
     #rdd_under_20 = rdd_under_410.filter(lambda line: line[1] <= 20)
 
-    print(rdd_under_410.take(10))
-    #print(rdd_under_20.take(1))
+    print(rdd_vars.take(10))
+    #print(rdd_under_20.collect())
 
     return None
 
