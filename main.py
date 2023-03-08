@@ -174,12 +174,9 @@ if __name__ == '__main__':
         on_server = False  # TODO: Set this to true if and only if deploying to the server
         spark_context = get_spark_context(on_server)
 
-        SparkContext.setSystemProperty("spark.executor.instances", "4")
-        SparkContext.setSystemProperty("spark.executor.cores", "2")
-
         data_frame = q1a(spark_context, on_server, with_vector_type=True)
 
-        rdd = q1b(spark_context, on_server, big=True)
+        rdd = q1b(spark_context, on_server, big=False)
 
         #q2(spark_context, data_frame)
 
@@ -187,7 +184,7 @@ if __name__ == '__main__':
 
         #q4(spark_context, rdd)
 
-        sleep(10000)
+        # sleep(10000)
     except Exception as e:
         print(e)
         spark_context.stop()
