@@ -104,11 +104,11 @@ def q3(spark_context: SparkContext, rdd: RDD):
     rdd_vars = rdd_combine.map(lambda line: aggregated_vecs(line))\
                           .map(lambda line: (line[0], compute_variance(line[1])))
     
-    #rdd_under_410 = rdd_vars.filter(lambda line: line[1] <= 410)
+    rdd_under_410 = rdd_vars.filter(lambda line: line[1] <= 410)
     #rdd_under_20 = rdd_under_410.filter(lambda line: line[1] <= 20)
 
-    print(rdd_vars.take(10))
-    #print(rdd_under_20.collect())
+    print(rdd_under_410.take(10))
+    #print(rdd_under_20.take(1))
 
     return None
 
