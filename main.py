@@ -19,7 +19,7 @@ def get_spark_context(on_server) -> SparkContext:
 
 
 def q1a(spark_context: SparkContext, on_server: bool) -> DataFrame:
-    vectors_file_path = "/vectors.csv" if on_server else "vectors.csv"
+    vectors_file_path = "/vectors_groot.csv" if on_server else "vectors_groot.csv"
 
     spark_session = SparkSession(spark_context)
 
@@ -33,7 +33,7 @@ def q1a(spark_context: SparkContext, on_server: bool) -> DataFrame:
 
 
 def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
-    vectors_file_path = "/vectors.csv" if on_server else "vectors.csv"
+    vectors_file_path = "/vectors_groot.csv" if on_server else "vectors_groot.csv"
 
     # TODO: Implement Q1b here by creating an RDD out of the file at {@code vectors_file_path}.
 
