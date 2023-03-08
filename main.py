@@ -51,19 +51,7 @@ def q2(spark_context: SparkContext, data_frame: DataFrame):
 
 def q3(spark_context: SparkContext, rdd: RDD):
     # TODO: Imlement Q3 here
-        
-    #Get RDD in form [['val', 'nr'], [ , ], [ , ] ]
-    rdd_splitted = rdd.map( lambda line: line.split(","))
 
-    #Get RDD combined with three values
-    #TODO: Figure out quicker and more efficient way. Maybe loop over all other pairs or cartesian once?
-    #TODO: Also, (A, B, C), (A, C, B) filter needed
-    rdd_combine = rdd_splitted.cartesian(rdd_splitted).filter(lambda line: line[0] < line[1])\
-                              .cartesian(rdd_splitted).filter(lambda line: line[0][1] < line[1])\
-                              .map(lambda line: (line[0][0], line[0][1], line[1]))\
-    
-    # [([A, "string1"], [B, "string2"], [C, "string3"]), ([A, "string1"], [B, "string2"], [D, "string4"]), ...]
-    
     #Find the aggregated vectors
     def aggregated_vecs(line):
         line0 = np.array(line[0]).astype(np.int32)
@@ -71,7 +59,7 @@ def q3(spark_context: SparkContext, rdd: RDD):
         line2 = np.array(line[2]).astype(np.int32)
 
         return line0 + line1 + line2
-
+    
     def rdd_variance(line):
         len_X = len(line)
 
@@ -83,9 +71,21 @@ def q3(spark_context: SparkContext, rdd: RDD):
         mu_X = np.sum(mu_X)
 
         return sum_square - mu_X**2
+        
+    #Get RDD in form [['val', 'nr'], [ , ], [ , ] ]
+    rdd_splitted = rdd.map( lambda line: line.split(","))\
+                        .map(lambda line: (line[0], line[1].split(";")))\
+
+    #Get RDD combined with three values
+    #TODO: Figure out quicker and more efficient way. Maybe loop over all other pairs or cartesian once?
+    #TODO: Also, (A, B, C), (A, C, B) filter needed
+    rdd_combine = rdd_splitted.cartesian(rdd_splitted).filter(lambda line: line[0] < line[1])\
+                              .cartesian(rdd_splitted).filter(lambda line: line[0][1] < line[1])\
+                              .map(lambda line: (line[0][0], line[0][1], line[1]))\
+    
+    # [([A, "string1"], [B, "string2"], [C, "string3"]), ([A, "string1"], [B, "string2"], [D, "string4"]), ...]
 
     rdd_vars = rdd_combine.map(lambda tuple: (tuple[0][0] + tuple[1][0] + tuple[2][0], [tuple[0][1], tuple[1][1], tuple[2][1]]))\
-                    .map(lambda line: (line[0], [line[1][0].split(";"), line[1][1].split(";"), line[1][2].split(";")]))\
                     .map(lambda line: (line[0], aggregated_vecs(line[1])))\
                     .map(lambda line: (line[0], rdd_variance(line[1])))
     
