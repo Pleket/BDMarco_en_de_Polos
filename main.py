@@ -79,15 +79,14 @@ def q3(spark_context: SparkContext, rdd: RDD):
     #Get RDD combined with three values
     #TODO: Figure out quicker and more efficient way. Maybe loop over all other pairs or cartesian once?
     #TODO: Also, (A, B, C), (A, C, B) filter needed
-    rdd_combine = rdd_splitted.cartesian(rdd_splitted).filter(lambda line: line[0] < line[1])\
-                              .cartesian(rdd_splitted).filter(lambda line: line[0][1] < line[1])\
-                              .map(lambda line: (line[0][0], line[0][1], line[1]))\
-    
-    # [([A, "string1"], [B, "string2"], [C, "string3"]), ([A, "string1"], [B, "string2"], [D, "string4"]), ...]
 
-    rdd_vars = rdd_combine.map(lambda tuple: (tuple[0][0] + tuple[1][0] + tuple[2][0], [tuple[0][1], tuple[1][1], tuple[2][1]]))\
-                    .map(lambda line: (line[0], aggregated_vecs(line[1])))\
-                    .map(lambda line: (line[0], rdd_variance(line[1])))
+    # [([A, "string1"], [B, "string2"], [C, "string3"]), ([A, "string1"], [B, "string2"], [D, "string4"]), ...]
+    rdd_vars = rdd_splitted.cartesian(rdd_splitted).filter(lambda line: line[0] < line[1])\
+            .cartesian(rdd_splitted).filter(lambda line: line[0][1] < line[1])\
+            .map(lambda line: (line[0][0], line[0][1], line[1]))\
+            .map(lambda tuple: (tuple[0][0].join(tuple[1][0].join(tuple[2][0])), [tuple[0][1], tuple[1][1], tuple[2][1]]))\
+            .map(lambda line: (line[0], aggregated_vecs(line[1])))\
+            .map(lambda line: (line[0], rdd_variance(line[1])))
     
     rdd_under_410 = rdd_vars.filter(lambda line: line[1] <= 410)
     #rdd_under_20 = rdd_under_410.filter(lambda line: line[1] <= 20)
