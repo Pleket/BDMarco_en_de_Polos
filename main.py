@@ -104,63 +104,42 @@ def q3(spark_context: SparkContext, rdd: RDD):
     vecs.sort(key=lambda item: item[0])
     vec_index = {vecs[i][0]: i for i in range(len(vecs))}
 
-    # #BROADCASSTING
-    # vi = spark_context.broadcast(vec_index)
-    # vs = spark_context.broadcast(vecs)
-
-    # print(vi)
-    # vec_dims_inv = 1 / vec_dims
-    # rdd = rdd.flatMap(lambda x: 
-    #                     [(x[0],mapping[0], tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0]]+1: ] if vi.value[x[0]] != len(vs.value)-1]
-    #                     ) \
-    #             .flatMap(lambda x: 
-    #                     [( (x[0], x[1], mapping[0]), tuple(y[0]+y[1] for y in zip(x[2], mapping[1]))) for mapping in vs.value[vi.value[x[1]]+1: ] if vi.value[x[1]] != len(vs.value)-1]
-    #                     ) \
-    #             .flatMap(lambda x:
-    #                             [( x[0], (x[1][i] * 1/len(x[1]), x[1][i] * x[1][i])) for i in range(len(x[1]))]
-    #                     ) \
-    #             .reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1])) \
-    #             .map(lambda row: (row[0], (vec_dims_inv * row[1][1]) - (row[1][0] * row[1][0])))\
-    #             .filter(lambda row: row[1] < TAU_PARAMETER) \
-
-
+    inv_vec_dim = 1/ vec_dims
     # Version map
     def get_var(agg_vec):
-        total_sum   = 0
+        total_sum = 0
         total_sum_squared = 0
-
         for val in agg_vec:
             total_sum+=val
             total_sum_squared+=val*val
-
         return 1/vec_dims * (total_sum_squared - (1/vec_dims * total_sum * total_sum))
 
-
-     # #BROADCASSTING
-    # vi = spark_context.broadcast(vec_index)
-    # vs = spark_context.broadcast(vecs)
-    
-    # rdd = rdd.flatMap(lambda x: 
-    #                     [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0]]+1: ] if vec_index[x[0]] != len(vecs)-1]
-    #                     ) \
-    #             .flatMap(lambda x: 
-    #                     [( x[0] + (mapping[0],), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vecs[vec_index[x[0][1]]+1: ] if vec_index[x[0][1]] != len(vecs)-1]
-    #                     ) \
-    #             .map(lambda row: (row[0], get_var(row[1]))) \
-    #             .filter(lambda row: row[1] < TAU_PARAMETER) \
 
     # #BROADCASSTING
     vi = spark_context.broadcast(vec_index)
     vs = spark_context.broadcast(vecs)
-    rdd = rdd.flatMap(lambda x: 
+    rdd = rdd.repartition(8).flatMap(lambda x: 
                     [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0]]+1: ] if vi.value[x[0]] != len(vs.value)-1]
                     ) \
             .flatMap(lambda x: 
-                    [( x[0] + (mapping[0],), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0][1]]+1: ] if vi.value[x[0][1]] != len(vs.value)-1]
-                    ) \
+                    [( x[0][0] + x[0][1] + mapping[0], tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0][1]]+1: ] if vi.value[x[0][1]] != len(vs.value)-1]
+                    )\
             .map(lambda row: (row[0], get_var(row[1]))) \
             .filter(lambda row: row[1] < TAU_PARAMETER) \
                 
+    # vi = spark_context.broadcast(vec_index)
+    # vs = spark_context.broadcast(vecs)
+    # rdd = rdd.flatMap(lambda x: 
+    #                 [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0]]+1: ] if vi.value[x[0]] != len(vs.value)-1]
+    #                 ) \
+    #         .flatMap(lambda x: 
+    #                 [( x[0][0] + x[0][1] + mapping[0], tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0][1]]+1: ] if vi.value[x[0][1]] != len(vs.value)-1]
+    #                 ) \
+    #         .flatMap(lambda x: [(x[0] + str(i), (x[1][i], x[1][i]**2)) for i in range(len(x[1]))]) \
+    #         .reduceByKey(lambda a,b: (a[0] + b[0], a[1]+b[1])) \
+    #         .map(lambda x: (x[0], 1/vec_dims * (x[1][1] - 1/vec_dims * x[1][0]*x[1][0]) )  ) \
+    #         .filter(lambda row: row[1] < TAU_PARAMETER) 
+          
     #print(f">> {rdd.collect()}")
     print(f">>COUNT {rdd.count()}")
     return
@@ -170,21 +149,19 @@ def q4(spark_context: SparkContext, rdd: RDD):
     return
 
 if __name__ == '__main__':
-    try:
-        on_server = False  # TODO: Set this to true if and only if deploying to the server
-        spark_context = get_spark_context(on_server)
+    on_server = False  # TODO: Set this to true if and only if deploying to the server
+    spark_context = get_spark_context(on_server)
 
-        data_frame = q1a(spark_context, on_server, with_vector_type=True)
+    data_frame = q1a(spark_context, on_server, with_vector_type=True)
 
-        rdd = q1b(spark_context, on_server, big=False)
+    rdd = q1b(spark_context, on_server, big=False)
 
-        #q2(spark_context, data_frame)
+    #q2(spark_context, data_frame)
 
-        q3(spark_context, rdd)
+    q3(spark_context, rdd)
 
-        #q4(spark_context, rdd)
+    #q4(spark_context, rdd)
 
-        # sleep(10000)
-    except Exception as e:
-        print(e)
-        spark_context.stop()
+    sleep(10000)
+    spark_context.stop()
+
