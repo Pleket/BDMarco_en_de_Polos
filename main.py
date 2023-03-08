@@ -94,10 +94,13 @@ def q3(spark_context: SparkContext, rdd: RDD):
         len_X = len(line)
 
         npLine = np.array(line)
-        squares = npLine.square().divide(len_X).sum()
-        mu_X = npLine.divide(len_X).sum()
+        squares = np.square(npLine)
+        squares = np.divide(squares, len_X)
+        sum_square = np.sum(squares)
+        mu_X = np.divide(npLine, len_X)
+        mu_X = np.sum(mu_X)
 
-        return squares - mu_X**2
+        return sum_square - mu_X**2
 
     rdd_key_value = rdd_combine.map(lambda tuple: (tuple[0][0] + tuple[1][0] + tuple[2][0], [tuple[0][1], tuple[1][1], tuple[2][1]]))
     rdd_split = rdd_key_value.map(lambda line: (line[0], [line[1][0].split(";"), line[1][1].split(";"), line[1][2].split(";")]))
