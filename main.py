@@ -55,16 +55,15 @@ def q3(spark_context: SparkContext, rdd: RDD):
         len_X = len(line)
 
         mu_X = 0 
-        quadraticSum = 0
         for value in line:
             value_int = value
             intermediate = value_int / len_X
             mu_X += intermediate
         
             quad = value_int**2
-            quadraticSum += quad
+            quad = quad / len_X
+            quadratic += quad
         
-        quadratic = quadraticSum / len_X
         variance = quadratic - mu_X**2
 
         return variance
@@ -75,9 +74,9 @@ def q3(spark_context: SparkContext, rdd: RDD):
     #Get RDD combined with three values
     #TODO: Figure out quicker and more efficient way. Maybe loop over all other pairs or cartesian once?
     #TODO: Also, (A, B, C), (A, C, B) filter needed
-    rdd_combine = rdd_splitted.cartesian(rdd_splitted).filter(lambda line: line[0][0] != line[1][0])\
-                              .cartesian(rdd_splitted).map(lambda line: (line[0][0], line[0][1], line[1]))\
-                              .filter(lambda line: line[0][0] != line[2][0] and line[1][0] != line[2][0])
+    rdd_combine = rdd_splitted.cartesian(rdd_splitted).filter(lambda line: line[0] < line[1])\
+                              .cartesian(rdd_splitted).filter(lambda line: line[0][1] < line[1])\
+                              .map(lambda line: (line[0][0], line[0][1], line[1]))\
     
     #Find the aggregated vectors
     def aggregated_vecs(line):
@@ -104,10 +103,10 @@ def q3(spark_context: SparkContext, rdd: RDD):
     rdd_vars = rdd_combine.map(lambda line: aggregated_vecs(line))\
                           .map(lambda line: (line[0], compute_variance(line[1])))
     
-    rdd_under_410 = rdd_vars.filter(lambda line: line[1] <= 410)
+    #rdd_under_410 = rdd_vars.filter(lambda line: line[1] <= 410)
     #rdd_under_20 = rdd_under_410.filter(lambda line: line[1] <= 20)
 
-    print(rdd_under_410.take(2))
+    print(rdd_vars.take(10))
     #print(rdd_under_20.collect())
 
     return None
