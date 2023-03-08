@@ -55,6 +55,7 @@ def q3(spark_context: SparkContext, rdd: RDD):
         len_X = len(line)
 
         mu_X = 0 
+        quadratic = 0
         for value in line:
             value_int = value
             intermediate = value_int / len_X
@@ -76,7 +77,7 @@ def q3(spark_context: SparkContext, rdd: RDD):
     #TODO: Also, (A, B, C), (A, C, B) filter needed
     rdd_combine = rdd_splitted.cartesian(rdd_splitted).filter(lambda line: line[0] < line[1])\
                               .cartesian(rdd_splitted).filter(lambda line: line[0][1] < line[1])\
-                              .map(lambda line: (line[0][0], line[0][1], line[1]))\
+                              .map(lambda line: (line[0][0], line[0][1], line[1]))
     
     #Find the aggregated vectors
     def aggregated_vecs(line):
