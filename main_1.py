@@ -112,12 +112,14 @@ def q2(spark_context: SparkContext, data_frame: DataFrame):
         end_time = time.time()
         # Get and print execution time
         execution_time = end_time - start_time
-        print(f"Execution time: {execution_time:.4f} seconds")
+        print(f"Execution time: {execution_time:.4f} seconds, tau: {i}")
 
 
-
+    # Create histogram
     fig, ax = plt.subplots()
-    ax.plot(tau, counts)
+    ax.hist(tau, weights=counts, bins=30)
+    for c in ax.containers:
+        ax.bar_label(c, labels=[v if v > 0 else '' for v in c.datavalues])
     ax.set_title('Amount of triple vectors with aggregate variance at most tau')
     ax.set_xlabel('Tau')
     ax.set_ylabel('Counts')
@@ -129,7 +131,6 @@ def q3(spark_context: SparkContext, rdd: RDD):
 
 
 def q4(spark_context: SparkContext, rdd: RDD):
-    # TODO: Imlement Q4 here
     return
 
 
