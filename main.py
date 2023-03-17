@@ -2,11 +2,11 @@ from pyspark import SparkConf, SparkContext, RDD
 from pyspark.sql import SparkSession, DataFrame, SQLContext
 from pyspark.sql.types import ArrayType, IntegerType, FloatType
 from pyspark.sql.functions import split as pyspark_split
-from time import sleep
-
+from time import sleep, time
 
 # amount of values per vector (dimensions)
 vec_dims = 20
+
 
 def get_spark_context(on_server) -> SparkContext:
     spark_conf = SparkConf().setAppName("2AMD15")
@@ -68,23 +68,26 @@ def q1b(spark_context: SparkContext, on_server: bool, big=False) -> RDD:
     return data.map(split_row)
 
 
-
 def q2(spark_context: SparkContext, data_frame: DataFrame):
     # create UDF
     def get_variance_triple(a1, a2, a3):
-        mu         = 0 
+        mu = 0
         total_sum_squared = 0
         for i in range(len(a1)):
             curr_sum = a1[i] + a2[i] + a3[i]
             mu += curr_sum / len(a1)
             total_sum_squared += curr_sum * curr_sum
-        return 1/len(a1) * total_sum_squared - mu*mu     
+        return 1 / len(a1) * total_sum_squared - mu * mu
 
-    # use it in query
+        # use it in query
+
     TAU_PARAMETER = 410
 
     sqlCtx = SQLContext(spark_context)
     sqlCtx.udf.register("VECVAR", get_variance_triple, FloatType())
+
+    data_frame.repartition(10).createOrReplaceTempView("vectors");
+
     count = sqlCtx.sql(
         f'''
         SELECT * FROM (
@@ -104,30 +107,32 @@ def q3(spark_context: SparkContext, rdd: RDD):
     vecs.sort(key=lambda item: item[0])
     vec_index = {vecs[i][0]: i for i in range(len(vecs))}
 
-    inv_vec_dim = 1/ vec_dims
+    inv_vec_dim = 1 / vec_dims
+
     # Version map
     def get_var(agg_vec):
         total_sum = 0
         total_sum_squared = 0
         for val in agg_vec:
-            total_sum+=val
-            total_sum_squared+=val*val
-        return 1/vec_dims * (total_sum_squared - (1/vec_dims * total_sum * total_sum))
-
+            total_sum += val
+            total_sum_squared += val * val
+        return 1 / vec_dims * (total_sum_squared - (1 / vec_dims * total_sum * total_sum))
 
     # #BROADCASSTING
     vi = spark_context.broadcast(vec_index)
     vs = spark_context.broadcast(vecs)
-    rdd = rdd.repartition(8).flatMap(lambda x: 
-                    [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0]]+1: ] if vi.value[x[0]] != len(vs.value)-1]
-                    ) \
-            .flatMap(lambda x: 
-                    [( x[0][0] + x[0][1] + mapping[0], tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0][1]]+1: ] if vi.value[x[0][1]] != len(vs.value)-1]
-                    )\
-            .map(lambda row: (row[0], get_var(row[1]))) \
-            .filter(lambda row: row[1] < TAU_PARAMETER) \
-                
-    # vi = spark_context.broadcast(vec_index)
+    rdd = rdd.repartition(8).flatMap(lambda x:
+                                     [((x[0], mapping[0]), tuple(y[0] + y[1] for y in zip(x[1], mapping[1]))) for
+                                      mapping in vs.value[vi.value[x[0]] + 1:] if vi.value[x[0]] != len(vs.value) - 1]
+                                     ) \
+        .flatMap(lambda x:
+                 [(x[0][0] + x[0][1] + mapping[0], tuple(y[0] + y[1] for y in zip(x[1], mapping[1]))) for mapping in
+                  vs.value[vi.value[x[0][1]] + 1:] if vi.value[x[0][1]] != len(vs.value) - 1]
+                 ) \
+        .map(lambda row: (row[0], get_var(row[1]))) \
+        .filter(lambda row: row[1] < TAU_PARAMETER) \
+ \
+        # vi = spark_context.broadcast(vec_index)
     # vs = spark_context.broadcast(vecs)
     # rdd = rdd.flatMap(lambda x: 
     #                 [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0]]+1: ] if vi.value[x[0]] != len(vs.value)-1]
@@ -139,14 +144,16 @@ def q3(spark_context: SparkContext, rdd: RDD):
     #         .reduceByKey(lambda a,b: (a[0] + b[0], a[1]+b[1])) \
     #         .map(lambda x: (x[0], 1/vec_dims * (x[1][1] - 1/vec_dims * x[1][0]*x[1][0]) )  ) \
     #         .filter(lambda row: row[1] < TAU_PARAMETER) 
-          
-    #print(f">> {rdd.collect()}")
+
+    # print(f">> {rdd.collect()}")
     print(f">>COUNT {rdd.count()}")
     return
-    
+
+
 def q4(spark_context: SparkContext, rdd: RDD):
     # TODO: Imlement Q4 here
     return
+
 
 if __name__ == '__main__':
     on_server = False  # TODO: Set this to true if and only if deploying to the server
@@ -156,12 +163,15 @@ if __name__ == '__main__':
 
     rdd = q1b(spark_context, on_server, big=False)
 
-    #q2(spark_context, data_frame)
+    from timeit import default_timer
+    start = default_timer()
+    print("Timer Started")
+    q2(spark_context, data_frame)
+    print(f"Q2 took {default_timer() - start} seconds")
 
-    q3(spark_context, rdd)
+    # q3(spark_context, rdd)
 
-    #q4(spark_context, rdd)
+    # q4(spark_context, rdd)
 
     sleep(10000)
     spark_context.stop()
-
