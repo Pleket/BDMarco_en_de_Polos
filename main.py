@@ -1,7 +1,7 @@
 from pyspark import SparkConf, SparkContext, RDD
 from pyspark.sql import SparkSession, DataFrame, SQLContext
 from pyspark.sql.types import ArrayType, IntegerType, FloatType
-from pyspark.sql.functions import split as pyspark_split
+from pyspark.sql.functions import split as pyspark_split, posexplode
 from time import sleep
 
 
@@ -41,17 +41,19 @@ def q1a(spark_context: SparkContext, on_server: bool, with_vector_type=False) ->
     print(f'Split col {split_col}')
 
     # depending on the type used, either split over columns or within one column
-    if with_vector_type:
-        df = df.withColumn('vec', split_col)
-    else:
-        for i in range(vec_dims):
-            df = df.withColumn(f'val_{i}', split_col.getItem(i))
+    df = df.withColumn('vec', split_col)
 
     # remove old _c1 (; separated values)
     df = df.drop('_c1')
 
+    # add vec
+    df = df.select('key', posexplode('vec'))
+
     # temp table
+    df = df.repartition(10)
     df.registerTempTable('vectors')
+
+    df.show()
     return df
 
 
@@ -82,66 +84,77 @@ def q2(spark_context: SparkContext, data_frame: DataFrame):
 
     # use it in query
     TAU_PARAMETER = 410
-
     sqlCtx = SQLContext(spark_context)
-    sqlCtx.udf.register("VECVAR", get_variance_triple, FloatType())
+    #sqlCtx.udf.register("VECVAR", get_variance_triple, FloatType())
     count = sqlCtx.sql(
         f'''
-        SELECT * FROM (
-        SELECT v1.key, v2.key, v3.key, VECVAR(v1.vec, v2.vec, v3.vec) AS variance
+        SELECT triple_id, VAR_POP(col) FROM (
+        SELECT CONCAT(v1.key, ',', v2.key, ',', v3.key) AS triple_id, v1.pos, v1.col + v2.col + v3.col as col
         FROM vectors as v1 
-        INNER JOIN vectors as v2 ON v1.key < v2.key
-        INNER JOIN vectors as v3 ON v2.key < v3.key)
-        WHERE variance < {TAU_PARAMETER};
+        INNER JOIN vectors as v2 ON (v1.key < v2.key AND v1.pos = v2.pos)
+        INNER JOIN vectors as v3 ON (v2.key < v3.key AND v2.pos = v3.pos))
+        GROUP BY triple_id
+        HAVING VAR_POP(col) < {TAU_PARAMETER};
         ''').count()
 
     print(f'$$ count {count}')
 
 
 def q3(spark_context: SparkContext, rdd: RDD):
-    TAU_PARAMETER = 410
+    def agg_var(agg_vec):
+            som = 0
+            som_squared = 0
+
+            for value in agg_vec:
+                som += value
+                som_squared += value*value
+
+            length_vector = len(agg_vec)
+            avg = 1 / length_vector * som
+            avg_sq = avg*avg
+            sq_som = 1 / length_vector * som_squared
+            
+            return sq_som - avg_sq
+
+    def agg_vec1(line, vs, vi):
+        
+        mapping = [( (line[0], line2[0]), tuple(nr[0] + nr[1] for nr in zip(line[1], line2[1]))) 
+                    for line2 in vs.value[ vi.value [line[0]] + 1:] 
+                    if vi.value[ line[0]] != len(vs.value)-1]
+
+        return mapping
+    
+    def agg_vec2(line, vs, vi):
+        
+        mapping = [( line[0][0] + line[0][1] + line3[0], 
+                    tuple(nr[0] + nr[1] for nr in zip(line[1], line3[1]))) 
+                    for line3 in vs.value[ vi.value[ line[0][1] ] + 1 : ] 
+                    if vi.value[ line[0][1] ] != len(vs.value)-1]
+
+        return mapping
+
+    #Get the vectors from the RDD and sort the values in the vector
     vecs = rdd.collect()
     vecs.sort(key=lambda item: item[0])
+
+    #Take the index only
     vec_index = {vecs[i][0]: i for i in range(len(vecs))}
 
-    inv_vec_dim = 1/ vec_dims
-    # Version map
-    def get_var(agg_vec):
-        total_sum = 0
-        total_sum_squared = 0
-        for val in agg_vec:
-            total_sum+=val
-            total_sum_squared+=val*val
-        return 1/vec_dims * (total_sum_squared - (1/vec_dims * total_sum * total_sum))
-
-
-    # #BROADCASSTING
+    #Use broadcasting to store the names of the vectors
     vi = spark_context.broadcast(vec_index)
     vs = spark_context.broadcast(vecs)
-    rdd = rdd.repartition(8).flatMap(lambda x: 
-                    [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0]]+1: ] if vi.value[x[0]] != len(vs.value)-1]
-                    ) \
-            .flatMap(lambda x: 
-                    [( x[0][0] + x[0][1] + mapping[0], tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0][1]]+1: ] if vi.value[x[0][1]] != len(vs.value)-1]
-                    )\
-            .map(lambda row: (row[0], get_var(row[1]))) \
-            .filter(lambda row: row[1] < TAU_PARAMETER) \
-                
-    # vi = spark_context.broadcast(vec_index)
-    # vs = spark_context.broadcast(vecs)
-    # rdd = rdd.flatMap(lambda x: 
-    #                 [( (x[0],mapping[0]), tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0]]+1: ] if vi.value[x[0]] != len(vs.value)-1]
-    #                 ) \
-    #         .flatMap(lambda x: 
-    #                 [( x[0][0] + x[0][1] + mapping[0], tuple(y[0]+y[1] for y in zip(x[1], mapping[1]))) for mapping in vs.value[vi.value[x[0][1]]+1: ] if vi.value[x[0][1]] != len(vs.value)-1]
-    #                 ) \
-    #         .flatMap(lambda x: [(x[0] + str(i), (x[1][i], x[1][i]**2)) for i in range(len(x[1]))]) \
-    #         .reduceByKey(lambda a,b: (a[0] + b[0], a[1]+b[1])) \
-    #         .map(lambda x: (x[0], 1/vec_dims * (x[1][1] - 1/vec_dims * x[1][0]*x[1][0]) )  ) \
-    #         .filter(lambda row: row[1] < TAU_PARAMETER) 
+
+    #Split the data into partitions to distribute the work load
+    rdd = rdd.repartition(8).flatMap(lambda line: agg_vec1(line, vs, vi))\
+                            .flatMap(lambda line: agg_vec2(line, vs, vi))\
+                            .map(lambda line: (line[0], agg_var(line[1])))
+    
+    rdd_410 = rdd.filter(lambda line: line[1] < 410)
+    rdd_20 = rdd_410.filter(lambda line: line[1] < 20)
           
     #print(f">> {rdd.collect()}")
-    print(f">>COUNT {rdd.count()}")
+    print(f">>COUNT {rdd_410.count()}")
+    print(f">>COUNT {rdd_20.count()}")
     return
     
 def q4(spark_context: SparkContext, rdd: RDD):
@@ -156,9 +169,9 @@ if __name__ == '__main__':
 
     rdd = q1b(spark_context, on_server, big=False)
 
-    #q2(spark_context, data_frame)
+    q2(spark_context, data_frame)
 
-    q3(spark_context, rdd)
+    #q3(spark_context, rdd)
 
     #q4(spark_context, rdd)
 
