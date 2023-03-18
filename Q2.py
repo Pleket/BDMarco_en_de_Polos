@@ -30,19 +30,23 @@ def q2_sol(spark_context: SparkContext, data_frame: DataFrame):
                 ORDER BY variance;
                 ''')
 
-    df_vec.registerTempTable('vectors_count')
+    df_vec.repartition(10).registerTempTable('vectors_count_0')
 
-    tau = [20,50,310,360,410]
+    # Begint 410 dat de rest er onder valt
+    tau = [410, 360, 310, 50, 20]
     counts = []
-    for i in tau:
-        TAU_PARAMETER = i
+    for i in range(0,len(tau)):
+        TAU_PARAMETER = tau[i]
         start_time = time.time()
 
-        count = sqlCtx.sql(
+        df_tau = sqlCtx.sql(
             f'''
-                SELECT * FROM vectors_count
+                SELECT variance FROM vectors_count_{i}
                 WHERE variance < {TAU_PARAMETER};
-                ''').count()
+                ''')
+        temp = f'vectors_count_{i+1}'
+        df_tau.repartition(10).createOrReplaceTempView(temp)
+        count = df_tau.count()
         counts.append(count)
         # Print count of triple vectors
         print(f'$$ count {count}')
@@ -50,7 +54,7 @@ def q2_sol(spark_context: SparkContext, data_frame: DataFrame):
         end_time = time.time()
         # Get and print execution time
         execution_time = end_time - start_time
-        print(f"Execution time: {execution_time:.4f} seconds, tau: {i}")
+        print(f"Execution time: {execution_time:.4f} seconds, tau: {tau[i]}")
 
 
     # Create histogram
