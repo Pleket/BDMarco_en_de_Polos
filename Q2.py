@@ -21,7 +21,7 @@ def q2_sol(spark_context: SparkContext, data_frame: DataFrame):
     sqlCtx.udf.register("VECVAR", get_variance_triple, FloatType())
 
 
-    df_vec = sqlCtx.sql(
+    df = sqlCtx.sql(
         f'''
                 SELECT v1.key, v2.key, v3.key, VECVAR(v1.vec, v2.vec, v3.vec) AS variance
                 FROM vectors as v1
@@ -29,7 +29,7 @@ def q2_sol(spark_context: SparkContext, data_frame: DataFrame):
                 INNER JOIN vectors as v3 ON v2.key < v3.key
                 ORDER BY variance;
                 ''')
-
+    df_vec = df.withColumn("variance_idx", col("variance")).sort("variance")
     df_vec.repartition(10).registerTempTable('vectors_count_0')
 
     # Begint 410 dat de rest er onder valt
