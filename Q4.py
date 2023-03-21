@@ -19,7 +19,7 @@ class Q4:
         self.width = math.ceil(math.e / self.epsilon)
         self.depth = math.ceil(ln(1 / self.delta))
 
-    def q4(self, spark_context: SparkContext, rdd: RDD):
+    def solve(self, spark_context: SparkContext, rdd: RDD):
 
         # width = int(np.ceil(np.exp(1) / self.epsilon))
         # depth = int(np.ceil(np.log(1 / self.delta)))

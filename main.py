@@ -4,6 +4,7 @@ from pyspark.sql import DataFrame
 from Q1 import q1_sol_a, q1_sol_b
 from Q2 import q2_sol
 from Q3 import q3_sol
+from Q4 import Q4
 
 def get_spark_context(on_server) -> SparkContext:
     spark_conf = SparkConf().setAppName("2AMD15")
@@ -36,8 +37,8 @@ def q3(spark_context: SparkContext, rdd: RDD):
     q3_sol(spark_context, rdd)
 
 
-def q4(spark_context: SparkContext, rdd: RDD):
-    return
+def q4_sol(spark_context: SparkContext, rdd: RDD):
+    return q4.solve(spark_context, rdd)
 
 
 if __name__ == '__main__':
