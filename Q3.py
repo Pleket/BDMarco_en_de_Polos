@@ -5,11 +5,17 @@ def q3_sol(spark_context: SparkContext, rdd: RDD):
 
     def agg_var(agg_vec):
 
-        np_vec = np.array(agg_vec)
-        sq_vec = np.square(np_vec)
+        som = 0
+        som_sq = 0
 
-        som = np.sum(np_vec)
-        som_sq = np.sum(sq_vec)
+        for val in agg_vec:
+            som += val
+            som_sq += val*val
+        # np_vec = np.array(agg_vec)
+        # sq_vec = np.square(np_vec)
+
+        # som = np.sum(np_vec)
+        # som_sq = np.sum(sq_vec)
 
         length_vector = len(agg_vec)
         avg = 1 / length_vector * som

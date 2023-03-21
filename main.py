@@ -1,5 +1,6 @@
 from pyspark import SparkConf, SparkContext, RDD
 from pyspark.sql import DataFrame
+from time import sleep
 
 from Q1 import Q1
 from Q2 import q2_sol
@@ -52,10 +53,11 @@ if __name__ == '__main__':
 
     rdd = q1b(spark_context, on_server)
 
-    q2(spark_context, data_frame)
+    # q2(spark_context, data_frame)
 
     q3(spark_context, rdd)
 
-    q4(spark_context, rdd)
+    # q4(spark_context, rdd)
 
+    sleep(10000)
     spark_context.stop()
