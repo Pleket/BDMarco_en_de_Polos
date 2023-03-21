@@ -6,6 +6,8 @@ from Q2 import q2_sol
 from Q3 import q3_sol
 from Q4 import Q4
 
+q4 = Q4(0.01, 0.1)
+
 def get_spark_context(on_server) -> SparkContext:
     spark_conf = SparkConf().setAppName("2AMD15")
     if not on_server:
@@ -55,6 +57,6 @@ if __name__ == '__main__':
 
     #q3(spark_context, rdd)
 
-    #q4(spark_context, rdd)
+    q4_sol(spark_context, rdd)
 
     spark_context.stop()

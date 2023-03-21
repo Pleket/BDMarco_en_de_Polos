@@ -9,6 +9,7 @@ from numpy import log as ln
 from collections import defaultdict
 import numpy as np
 import random as rd
+import math
 
 class Q4:
     def __init__(self, epsilon=0.001, delta=0.1):
@@ -31,19 +32,28 @@ class Q4:
             hash.append(Hash_Function(prime, self.width))
 
         # initialize CMS array
-        cms = defaultdict(lambda: np.zeros(self.width))
+        cms = np.zeros((self.depth, self.width))
 
         # function to update CMS with a vector
-        def cms_update(vec):
+        def cms_update(vec, reducer):
             for i in range(len(vec)):
                 for j in range(self.depth):
-                    idx = hash[j].get_index(str(i).encode() + str(vec[i]).encode())
-                    cms[j][idx] += 1
-            return cms
+                    index = int.from_bytes((str(i) + str(vec[0])).encode(), 'big') % reducer
+                    idx = hash[j].get_index(index)
+                    cms[j][idx] += int(vec[1][i])
 
         # compute CMS sketch of each vector
-        cms_vectors = rdd.map(lambda x: (x[0], cms_update(x[1])))
-        cms_vectors.foreach(print)
+        vecs = rdd.collect()
+        vecs.sort(key=lambda item: item[0])
+
+        reducer = rd.choice([x for x in range(len(vecs) * len(vecs[0][1]), len(vecs) * len(vecs[0][1]) + 10000) if not [t for t in range(2, x) if not x % t]])
+        
+        for i in range(len(vecs)):
+            cms_update(vecs[i], reducer)
+        
+        print(cms)
+        print(self.width)
+        
 
 class Hash_Function:
     def __init__(self, mod_prime, mod_width):
@@ -52,4 +62,5 @@ class Hash_Function:
         self.multiple = rd.randint(1, 30)
     
     def get_index(self, key):
+        print(key)
         return ((key * self.multiple) % self.mod_prime) % self.mod_width
