@@ -4,7 +4,7 @@ from pyspark.sql.functions import split as col, posexplode
 from pyspark.sql import SparkSession, DataFrame, functions
 
 
-def q1_sol_a(spark_context: SparkContext, on_server: bool, with_vector_type=True) -> DataFrame:
+def q1_sol_a(spark_context: SparkContext, on_server: bool, with_pos: bool, with_vector_type=True) -> DataFrame:
     vectors_file_path = "/vectors.csv" if on_server else "vectors.csv"
 
     # sparkSession = SparkSession.builder.sparkContext(spark_context.sc()).getOrCreate();
@@ -22,13 +22,14 @@ def q1_sol_a(spark_context: SparkContext, on_server: bool, with_vector_type=True
     # String to array
     df = df.withColumn("vec", functions.split("vec", ";").cast("array<int>"))
     # Explode with positions
-    df = df.select("key", posexplode("vec"))
+    if (with_pos):
+        df = df.select("key", posexplode("vec"))
     # Show
     df.show()
 
     return df
 
-def q1_sol_b(spark_context: SparkContext, on_server: bool, big=False) -> RDD:
+def q1_sol_b(spark_context: SparkContext, on_server: bool, with_pos: bool, big=False) -> RDD:
     vectors_file_path = "/vectors.csv" if on_server else "vectors.csv"
 
     # sparkSession = SparkSession.builder.sparkContext(spark_context.sc()).getOrCreate();
@@ -46,7 +47,8 @@ def q1_sol_b(spark_context: SparkContext, on_server: bool, big=False) -> RDD:
     # String to array
     df = df.withColumn("vec", functions.split("vec", ";").cast("array<int>"))
     # Explode with positions
-    df = df.select("key", posexplode("vec"))
+    if (with_pos):
+        df = df.select("key", posexplode("vec"))
     # Show
     df.show()
 

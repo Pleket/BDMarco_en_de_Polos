@@ -18,13 +18,13 @@ def get_spark_context(on_server) -> SparkContext:
 
     return spark_context
 
-def q1a(spark_context: SparkContext, on_server: bool, with_vector_type=True) -> DataFrame:
-    return q1_sol_a(spark_context, on_server, with_vector_type)
+def q1a(spark_context: SparkContext, on_server: bool, with_pos: bool, with_vector_type=True) -> DataFrame:
+    return q1_sol_a(spark_context, on_server, with_pos, with_vector_type)
 
 
 
-def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
-    return q1_sol_b(spark_context, on_server)
+def q1b(spark_context: SparkContext, on_server: bool, with_pos: bool) -> RDD:
+    return q1_sol_b(spark_context, with_pos, on_server)
 
 
 
@@ -46,9 +46,9 @@ if __name__ == '__main__':
 
     spark_context = get_spark_context(on_server)
 
-    data_frame = q1a(spark_context, on_server)
+    data_frame = q1a(spark_context, on_server, with_pos=False)
 
-    rdd = q1b(spark_context, on_server)
+    rdd = q1b(spark_context, on_server, with_pos=False)
 
     #q2(spark_context, data_frame)
 
