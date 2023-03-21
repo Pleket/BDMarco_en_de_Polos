@@ -67,6 +67,8 @@ class Q1:
 
         # remove old _c1 (; separated values)
         df = df.drop('_c1')
+        
+        df = df.select('key', posexplode('vec'))
 
         df.registerTempTable('vectors')
         return df
