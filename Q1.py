@@ -9,34 +9,38 @@ class Q1:
         self.person = person
     
     def solve_a(self, spark_context: SparkContext, on_server: bool, with_vector_type=True) -> DataFrame:
-        match self.person:
-            case "Roelle":
-                return self.a_roelle(spark_context, on_server, with_vector_type)
-            case "Lieke":
-                return self.a_lieke(spark_context, on_server)
-            case "Marco":
-                return self.a_marco(spark_context, on_server)
-            case "Rik":
-                return self.a_rik(spark_context, on_server, with_vector_type)
-            case "Dalton":
-                return self.a_dalton(spark_context, on_server)
-            case "Thomas":
-                return self.a_thomas(spark_context, on_server)
+
+        return self.a_roelle(spark_context, on_server, with_vector_type)
+        # match self.person:
+        #     case "Roelle":
+        #         return self.a_roelle(spark_context, on_server, with_vector_type)
+        #     case "Lieke":
+        #         return self.a_lieke(spark_context, on_server)
+        #     case "Marco":
+        #         return self.a_marco(spark_context, on_server)
+        #     case "Rik":
+        #         return self.a_rik(spark_context, on_server, with_vector_type)
+        #     case "Dalton":
+        #         return self.a_dalton(spark_context, on_server)
+        #     case "Thomas":
+        #         return self.a_thomas(spark_context, on_server)
     
     def solve_b(self, spark_context: SparkContext, on_server: bool) -> RDD:
-        match self.person:
-            case "Roelle":
-                return self.b_roelle(spark_context, on_server)
-            case "Lieke":
-                return self.b_lieke(spark_context, on_server)
-            case "Marco":
-                return self.b_marco(spark_context, on_server)
-            case "Rik":
-                return self.b_rik(spark_context, on_server)
-            case "Dalton":
-                return self.b_dalton(spark_context, on_server)
-            case "Thomas":
-                return self.b_thomas(spark_context, on_server)
+
+        return self.b_roelle(spark_context, on_server)
+        # match self.person:
+        #     case "Roelle":
+        #         return self.b_roelle(spark_context, on_server)
+        #     case "Lieke":
+        #         return self.b_lieke(spark_context, on_server)
+        #     case "Marco":
+        #         return self.b_marco(spark_context, on_server)
+        #     case "Rik":
+        #         return self.b_rik(spark_context, on_server)
+        #     case "Dalton":
+        #         return self.b_dalton(spark_context, on_server)
+        #     case "Thomas":
+        #         return self.b_thomas(spark_context, on_server)
 
 
     def a_roelle(self, spark_context: SparkContext, on_server: bool, with_vector_type=True) -> DataFrame:

@@ -1,18 +1,21 @@
 from pyspark import SparkContext, RDD
+import numpy as np
+import threading
 
-def q3_sol(spark_context: SparkContext, rdd: RDD):    
+def q3_sol(spark_context: SparkContext, rdd: RDD): 
+
     def agg_var(agg_vec):
-        som = 0
-        som_squared = 0
 
-        for value in agg_vec:
-            som += value
-            som_squared += value*value
+        np_vec = np.array(agg_vec)
+        sq_vec = np.square(np_vec)
+
+        som = np.sum(np_vec)
+        som_sq = np.sum(sq_vec)
 
         length_vector = len(agg_vec)
         avg = 1 / length_vector * som
         avg_sq = avg*avg
-        sq_som = 1 / length_vector * som_squared
+        sq_som = 1 / length_vector * som_sq
         
         return sq_som - avg_sq
 
@@ -45,14 +48,15 @@ def q3_sol(spark_context: SparkContext, rdd: RDD):
     vs = spark_context.broadcast(vecs)
 
     #Split the data into partitions to distribute the work load
-    rdd = rdd.repartition(8).flatMap(lambda line: agg_vec1(line, vs, vi))\
+    rdd = rdd.repartition(5).flatMap(lambda line: agg_vec1(line, vs, vi))\
                             .flatMap(lambda line: agg_vec2(line, vs, vi))\
-                            .map(lambda line: (line[0], agg_var(line[1])))
-    
-    rdd_410 = rdd.filter(lambda line: line[1] < 410)
-    rdd_20 = rdd_410.filter(lambda line: line[1] < 20)
-          
-    #print(f">> {rdd.collect()}")
-    print(f">>COUNT {rdd_410.count()}")
-    print(f">>COUNT {rdd_20.count()}")
+                            .map(lambda line: agg_var(line[1])).collect() #only need the variance, then count how many above 410
+
+    numpy_rdd = np.array(rdd)
+    below_410 = (numpy_rdd < 410)
+    below_20 = (numpy_rdd < 20)
+    print(f">>COUNT {below_410.sum()}")
+    print(f">>COUNT {below_20.sum()}")
+        
+
     return
