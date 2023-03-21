@@ -1,20 +1,13 @@
-from pyspark import SparkConf, SparkContext, RDD
-from pyspark.sql import SparkSession, DataFrame, SQLContext
-from pyspark.sql.types import ArrayType, IntegerType, FloatType, DoubleType
-from pyspark.sql.functions import split as pyspark_split, col, udf, sum
-from pyspark.ml.feature import VectorAssembler
+from pyspark import SparkContext, RDD
+from pyspark.sql.functions import split as sum
 
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
-import matplotlib.pyplot as plt
-import time
-from pyspark import SparkConf, SparkContext
+from pyspark import SparkContext
 import numpy as np
 from numpy import log as ln
 from collections import defaultdict
-from pyspark.mllib.random import RandomRDDs
 import numpy as np
-import hashlib
 import random as rd
 
 class Q4:
