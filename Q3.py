@@ -1,6 +1,5 @@
 from pyspark import SparkContext, RDD
 import numpy as np
-import threading
 
 def q3_sol(spark_context: SparkContext, rdd: RDD): 
 
