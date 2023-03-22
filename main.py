@@ -2,7 +2,7 @@ from pyspark import SparkConf, SparkContext, RDD
 from pyspark.sql import DataFrame
 from time import sleep
 
-from Q1 import Q1
+from Q1 import q1_sol_a, q1_sol_b
 from Q2 import q2_sol
 from Q3 import q3_sol
 
@@ -19,15 +19,14 @@ def get_spark_context(on_server) -> SparkContext:
 
     return spark_context
 
-q1 = Q1("Roelle")
 
 def q1a(spark_context: SparkContext, on_server: bool, with_vector_type=True) -> DataFrame:
-    return q1.solve_a(spark_context, on_server, with_vector_type)
+    return q1_sol_a(spark_context, on_server, with_vector_type, with_pos=True)
 
 
 
 def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
-    return q1.solve_b(spark_context, on_server)
+    return q1_sol_b(spark_context, on_server, with_pos=True,)
 
 
 
