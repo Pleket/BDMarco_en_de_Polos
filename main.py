@@ -1,6 +1,9 @@
 from pyspark import SparkConf, SparkContext, RDD
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import DataFrame
 
+from Q1 import q1_sol_a, q1_sol_b
+from Q2 import q2_sol
+from Q3 import q3_sol
 
 def get_spark_context(on_server) -> SparkContext:
     spark_conf = SparkConf().setAppName("2AMD15")
@@ -15,34 +18,31 @@ def get_spark_context(on_server) -> SparkContext:
 
     return spark_context
 
-
-def q1a(spark_context: SparkContext, on_server: bool) -> DataFrame:
-    vectors_file_path = "/vectors.csv" if on_server else "vectors.csv"
-
-    spark_session = SparkSession(spark_context)
-
-    # TODO: Implement Q1a here by creating a Dataset of DataFrame out of the file at {@code vectors_file_path}.
-
-    return None
+def q1a(spark_context: SparkContext, on_server: bool, with_pos: bool, with_vector_type=True) -> DataFrame:
+    return q1_sol_a(spark_context, on_server, with_pos, with_vector_type)
 
 
+<<<<<<< HEAD
 def q1b(spark_context: SparkContext, on_server: bool) -> RDD:
     vectors_file_path = "/vectors.csv" if on_server else "vectors.csv"
     return spark_context.textFile(vectors_file_path)
+=======
+
+def q1b(spark_context: SparkContext, on_server: bool, with_pos: bool) -> RDD:
+    return q1_sol_b(spark_context, with_pos, on_server)
+
+>>>>>>> f38fac971e25911ae8d464eb8a49f6867a0855ac
 
 
 def q2(spark_context: SparkContext, data_frame: DataFrame):
-    # TODO: Imlement Q2 here
-    return
+    q2_sol(spark_context, data_frame)
 
 
 def q3(spark_context: SparkContext, rdd: RDD):
-    # TODO: Imlement Q3 here
-    return
+    q3_sol(spark_context, rdd)
 
 
 def q4(spark_context: SparkContext, rdd: RDD):
-    # TODO: Imlement Q4 here
     return
 
 
@@ -52,16 +52,20 @@ if __name__ == '__main__':
 
     spark_context = get_spark_context(on_server)
 
-    data_frame = q1a(spark_context, on_server)
+    data_frame = q1a(spark_context, on_server, with_pos=False)
 
-    rdd = q1b(spark_context, on_server)
+    rdd = q1b(spark_context, on_server, with_pos=False)
 
+<<<<<<< HEAD
     print(rdd.take(10))
 
     q2(spark_context, data_frame)
+=======
+    #q2(spark_context, data_frame)
+>>>>>>> f38fac971e25911ae8d464eb8a49f6867a0855ac
 
-    q3(spark_context, rdd)
+    #q3(spark_context, rdd)
 
-    q4(spark_context, rdd)
+    #q4(spark_context, rdd)
 
     spark_context.stop()
